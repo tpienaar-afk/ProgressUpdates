@@ -5,6 +5,7 @@
 //--------------------------------------------------
 // Module includes (LOCKED PATHS)
 //--------------------------------------------------
+#include <Modules/ExecutionMode.mqh>
 #include <Modules/Dashboard.mqh>
 #include <Modules/MarketConditions.mqh>
 #include <Modules/Indicators.mqh>
@@ -28,18 +29,32 @@ input int    RSIPeriod     = 14;
 string g_blockReason = "";
 
 //--------------------------------------------------
+// Expert initialization
+//--------------------------------------------------
 int OnInit()
 {
    Print("Scalper_ModularEA loaded");
 
    Dashboard_Create();
+
    Dashboard_UpdateStatus("INITIALISING");
    Dashboard_UpdateSymbol(_Symbol);
+   Dashboard_UpdateTF(TFToString(_Period));
    Dashboard_UpdateRisk(RiskPercent);
+   Dashboard_UpdateMode(ExecutionModeToText());
+
+   // HARD SAFETY NOTICE
+   if(ExecutionMode != MODE_LIVE)
+      Print("⚠ EA running in SAFE MODE (NO REAL TRADES)");
+
+   if(ExecutionMode == MODE_LIVE)
+      Alert("⚠ LIVE TRADING ENABLED ⚠");
 
    return INIT_SUCCEEDED;
 }
 
+//--------------------------------------------------
+// Expert deinitialization
 //--------------------------------------------------
 void OnDeinit(const int reason)
 {
@@ -48,9 +63,11 @@ void OnDeinit(const int reason)
 }
 
 //--------------------------------------------------
+// Expert tick
+//--------------------------------------------------
 void OnTick()
 {
-   // --- Spread
+   // --- Always update spread
    double spread = GetDisplaySpread(_Symbol);
    Dashboard_UpdateSpread(spread);
 
@@ -92,8 +109,21 @@ void OnTick()
 
    Dashboard_UpdateLot(lot);
 
-   // --- Trade execution
-   bool ok;
+   //--------------------------------------------------
+   // HARD TRADE GUARD (SINGLE POINT OF CONTROL)
+   //--------------------------------------------------
+   if(ExecutionMode != MODE_LIVE)
+   {
+      // Paper / analysis mode: logic runs, no orders sent
+      Dashboard_UpdateStatus("SIMULATION ONLY");
+      return;
+   }
+
+   //--------------------------------------------------
+   // REAL TRADE EXECUTION (LIVE ONLY)
+   //--------------------------------------------------
+   bool ok = false;
+
    if(signal > 0)
       ok = Trade_OpenBuy(_Symbol, lot);
    else
