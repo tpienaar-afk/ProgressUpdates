@@ -1,0 +1,30 @@
+#ifndef __EXECUTION_MODE_MQH__
+#define __EXECUTION_MODE_MQH__
+
+//--------------------------------------------------
+// Execution mode (GLOBAL CONTRACT)
+//--------------------------------------------------
+enum ENUM_EXECUTION_MODE
+{
+   MODE_ANALYSIS = 0,   // no trades
+   MODE_PAPER    = 1,   // simulated
+   MODE_LIVE     = 2    // real trades
+};
+
+input ENUM_EXECUTION_MODE ExecutionMode = MODE_ANALYSIS;
+
+//--------------------------------------------------
+// Helper
+//--------------------------------------------------
+string ExecutionModeToText()
+{
+   switch(ExecutionMode)
+   {
+      case MODE_ANALYSIS: return "ANALYSIS";
+      case MODE_PAPER:    return "PAPER";
+      case MODE_LIVE:     return "LIVE";
+   }
+   return "UNKNOWN";
+}
+
+#endif
