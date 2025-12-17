@@ -1,6 +1,9 @@
 #ifndef __DASHBOARD_MQH__
 #define __DASHBOARD_MQH__
 
+//--------------------------------------------------
+// Timeframe helper
+//--------------------------------------------------
 string TFToString(ENUM_TIMEFRAMES tf)
 {
    switch(tf)
@@ -18,16 +21,13 @@ string TFToString(ENUM_TIMEFRAMES tf)
    }
 }
 
-
-
-
 //--------------------------------------------------
 // Layout (LOCKED)
 //--------------------------------------------------
 #define DASH_X_LEFT    20
 #define DASH_X_RIGHT   240
 
-#define DASH_Y_START   96      // ⬇ dropped by two lines
+#define DASH_Y_START   96
 #define DASH_LINE_H    18
 
 #define DASH_BG_X      10
@@ -43,6 +43,7 @@ string TFToString(ENUM_TIMEFRAMES tf)
 #define D_STATUS       "D_STATUS"
 #define D_SYMBOL       "D_SYMBOL"
 #define D_TF           "D_TF"
+#define D_MODE         "D_MODE"
 
 #define D_SPREAD       "D_SPREAD"
 #define D_RISK         "D_RISK"
@@ -54,18 +55,12 @@ string TFToString(ENUM_TIMEFRAMES tf)
 #define DASH_BE        "DASH_BE"
 #define DASH_TRAIL     "DASH_TRAIL"
 
-#define D_MODE "D_MODE"
-
+#define D_PAPER        "D_PAPER"
 
 //--------------------------------------------------
-// Internal helper (SINGLE SOURCE OF TRUTH)
+// Internal helper
 //--------------------------------------------------
-void DashLabel(
-   const string name,
-   int x,
-   int y,
-   const string text
-)
+void DashLabel(const string name,int x,int y,const string text)
 {
    if(ObjectFind(0,name) >= 0)
       ObjectDelete(0,name);
@@ -78,31 +73,13 @@ void DashLabel(
    ObjectSetInteger(0,name,OBJPROP_FONTSIZE,9);
    ObjectSetString (0,name,OBJPROP_FONT,"Consolas");
    ObjectSetString (0,name,OBJPROP_TEXT,text);
-   
-  
- 
-   
-   
-   
 }
-
-//--------------------------------------------------
-// Execution mode display (STRING ONLY)
-//--------------------------------------------------
-void Dashboard_UpdateMode(const string text)
-{
-   ObjectSetString(0,D_MODE,OBJPROP_TEXT,"Mode: "+text);
-}
-
-
-
 
 //--------------------------------------------------
 // Create dashboard
 //--------------------------------------------------
 void Dashboard_Create()
 {
-   // --- Background
    ObjectCreate(0,DASH_BG,OBJ_RECTANGLE_LABEL,0,0,0);
    ObjectSetInteger(0,DASH_BG,OBJPROP_CORNER,CORNER_LEFT_UPPER);
    ObjectSetInteger(0,DASH_BG,OBJPROP_XDISTANCE,DASH_BG_X);
@@ -112,29 +89,25 @@ void Dashboard_Create()
    ObjectSetInteger(0,DASH_BG,OBJPROP_COLOR,clrBlack);
    ObjectSetInteger(0,DASH_BG,OBJPROP_BACK,true);
 
-   // --- Left column
-   DashLabel(D_STATUS, DASH_X_LEFT,  DASH_Y_START + 0*DASH_LINE_H, "Status:");
-   DashLabel(D_SYMBOL, DASH_X_LEFT,  DASH_Y_START + 1*DASH_LINE_H, "Symbol:");
-   DashLabel(D_TF,     DASH_X_LEFT,  DASH_Y_START + 2*DASH_LINE_H, "TF:");
+   // Left
    DashLabel(D_STATUS, DASH_X_LEFT,  DASH_Y_START + 0*DASH_LINE_H, "Status:");
    DashLabel(D_SYMBOL, DASH_X_LEFT,  DASH_Y_START + 1*DASH_LINE_H, "Symbol:");
    DashLabel(D_TF,     DASH_X_LEFT,  DASH_Y_START + 2*DASH_LINE_H, "TF:");
    DashLabel(D_MODE,   DASH_X_LEFT,  DASH_Y_START + 3*DASH_LINE_H, "Mode:");
 
-   
-   
-
-   // --- Right column
+   // Right
    DashLabel(D_SPREAD, DASH_X_RIGHT, DASH_Y_START + 0*DASH_LINE_H, "Spread:");
    DashLabel(D_RISK,   DASH_X_RIGHT, DASH_Y_START + 1*DASH_LINE_H, "Risk:");
    DashLabel(D_LOT,    DASH_X_RIGHT, DASH_Y_START + 2*DASH_LINE_H, "Lot:");
    DashLabel(D_SIGNAL, DASH_X_RIGHT, DASH_Y_START + 3*DASH_LINE_H, "Signal:");
 
-   // --- Management lines
+   // Management
    DashLabel(DASH_SL,    DASH_X_LEFT, DASH_Y_START + 5*DASH_LINE_H, "SL: -");
    DashLabel(DASH_TP,    DASH_X_LEFT, DASH_Y_START + 6*DASH_LINE_H, "TP: -");
    DashLabel(DASH_BE,    DASH_X_LEFT, DASH_Y_START + 7*DASH_LINE_H, "BE: -");
    DashLabel(DASH_TRAIL, DASH_X_LEFT, DASH_Y_START + 8*DASH_LINE_H, "Trail: -");
+
+   DashLabel(D_PAPER, DASH_X_RIGHT, DASH_Y_START + 4*DASH_LINE_H, "Paper P/L:");
 }
 
 //--------------------------------------------------
@@ -155,27 +128,34 @@ void Dashboard_UpdateTF(const string s)
    ObjectSetString(0,D_TF,OBJPROP_TEXT,"TF: "+s);
 }
 
+void Dashboard_UpdateMode(const string s)
+{
+   ObjectSetString(0,D_MODE,OBJPROP_TEXT,"Mode: "+s);
+}
+
 void Dashboard_UpdateSpread(double v)
 {
-   ObjectSetString(0,D_SPREAD,OBJPROP_TEXT,
-      "Spread: "+DoubleToString(v,1));
+   ObjectSetString(0,D_SPREAD,OBJPROP_TEXT,"Spread: "+DoubleToString(v,1));
 }
 
 void Dashboard_UpdateRisk(double v)
 {
-   ObjectSetString(0,D_RISK,OBJPROP_TEXT,
-      "Risk: "+DoubleToString(v,1)+"%");
+   ObjectSetString(0,D_RISK,OBJPROP_TEXT,"Risk: "+DoubleToString(v,1)+"%");
 }
 
 void Dashboard_UpdateLot(double v)
 {
-   ObjectSetString(0,D_LOT,OBJPROP_TEXT,
-      "Lot: "+DoubleToString(v,2));
+   ObjectSetString(0,D_LOT,OBJPROP_TEXT,"Lot: "+DoubleToString(v,2));
 }
 
 void Dashboard_UpdateSignal(const string s)
 {
    ObjectSetString(0,D_SIGNAL,OBJPROP_TEXT,"Signal: "+s);
+}
+
+void Dashboard_UpdatePaperPL(double v)
+{
+   ObjectSetString(0,D_PAPER,OBJPROP_TEXT,"Paper P/L: "+DoubleToString(v,2));
 }
 
 //--------------------------------------------------
@@ -185,9 +165,10 @@ void Dashboard_Destroy()
 {
    string objs[]={
       DASH_BG,
-      D_STATUS,D_SYMBOL,D_TF,
+      D_STATUS,D_SYMBOL,D_TF,D_MODE,
       D_SPREAD,D_RISK,D_LOT,D_SIGNAL,
-      DASH_SL,DASH_TP,DASH_BE,DASH_TRAIL
+      DASH_SL,DASH_TP,DASH_BE,DASH_TRAIL,
+      D_PAPER
    };
 
    for(int i=0;i<ArraySize(objs);i++)
