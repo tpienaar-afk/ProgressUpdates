@@ -13,6 +13,8 @@
 #include <Modules/PipCalculator.mqh>
 #include <Modules/RiskManager.mqh>
 #include <Modules/TradeExecutor.mqh>
+#include <Modules/PaperTrade.mqh>
+
 
 //--------------------------------------------------
 // Inputs
@@ -66,12 +68,37 @@ void OnDeinit(const int reason)
 // Expert tick
 //--------------------------------------------------
 void OnTick()
+
+
 {
-   // --- Always update spread
+   
+//Call update on every tick
+   
+   PaperTrade_OnTick();
+   Dashboard_UpdatePaperPL(PaperTrade_GetProfit());
+   
+   
+   
+   // --------------------------------------------------
+   // ALWAYS UPDATE DASHBOARD (NO EARLY RETURNS ABOVE)
+   // --------------------------------------------------
    double spread = GetDisplaySpread(_Symbol);
    Dashboard_UpdateSpread(spread);
+   Dashboard_UpdatePaperPL(PaperTrade_GetProfit());
 
-   // --- Market conditions
+   // --------------------------------------------------
+   // ANALYSIS MODE (DISPLAY ONLY – ABSOLUTE HARD STOP)
+   // --------------------------------------------------
+   if(ExecutionMode == MODE_ANALYSIS)
+   {
+      Dashboard_UpdateStatus("ANALYSIS");
+      Dashboard_UpdateSignal("-");
+      return;
+   }
+
+   // --------------------------------------------------
+   // MARKET CONDITIONS
+   // --------------------------------------------------
    if(!MarketConditionsOK(_Symbol, MaxSpread, g_blockReason))
    {
       Dashboard_UpdateStatus(g_blockReason);
@@ -81,7 +108,9 @@ void OnTick()
 
    Dashboard_UpdateStatus("OK");
 
-   // --- Signal
+   // --------------------------------------------------
+   // SIGNAL
+   // --------------------------------------------------
    int signal = GetScalperSignal(
       _Symbol,
       PERIOD_M1,
@@ -99,7 +128,9 @@ void OnTick()
    string signalText = (signal > 0 ? "BUY" : "SELL");
    Dashboard_UpdateSignal(signalText);
 
-   // --- Risk & lot sizing
+   // --------------------------------------------------
+   // LOT CALCULATION
+   // --------------------------------------------------
    double lot = CalculateRiskLot(_Symbol, RiskPercent);
    if(lot <= 0)
    {
@@ -109,25 +140,41 @@ void OnTick()
 
    Dashboard_UpdateLot(lot);
 
-   //--------------------------------------------------
-   // HARD TRADE GUARD (SINGLE POINT OF CONTROL)
-   //--------------------------------------------------
-   if(ExecutionMode != MODE_LIVE)
+   // --------------------------------------------------
+   // PAPER TRADING MODE
+   // --------------------------------------------------
+  if(ExecutionMode == MODE_PAPER)
+{
+   // Manage existing paper trade
+   PaperTrade_Manage(signal > 0 ? +1 : -1);
+
+   // Open new paper trade if none exists
+   if(!pt_active)
    {
-      // Paper / analysis mode: logic runs, no orders sent
-      Dashboard_UpdateStatus("SIMULATION ONLY");
-      return;
+      PaperTrade_Open(signal > 0 ? +1 : -1, lot);
+      Dashboard_UpdateStatus("PAPER TRADE OPEN");
+   }
+   else
+   {
+      Dashboard_UpdateStatus("PAPER TRADE ACTIVE");
    }
 
-   //--------------------------------------------------
-   // REAL TRADE EXECUTION (LIVE ONLY)
-   //--------------------------------------------------
-   bool ok = false;
+   return;
+}
 
-   if(signal > 0)
-      ok = Trade_OpenBuy(_Symbol, lot);
-   else
-      ok = Trade_OpenSell(_Symbol, lot);
 
-   Dashboard_UpdateStatus(ok ? "TRADE OPENED" : "ORDER FAILED");
+   // --------------------------------------------------
+   // LIVE TRADING MODE (ONLY PLACE REAL ORDERS CAN HAPPEN)
+   // --------------------------------------------------
+   if(ExecutionMode == MODE_LIVE)
+   {
+      bool ok = false;
+
+      if(signal > 0)
+         ok = Trade_OpenBuy(_Symbol, lot);
+      else
+         ok = Trade_OpenSell(_Symbol, lot);
+
+      Dashboard_UpdateStatus(ok ? "TRADE OPENED" : "ORDER FAILED");
+   }
 }
