@@ -1,0 +1,13 @@
+#ifndef __TRADE_PARAMETERS_MQH__
+#define __TRADE_PARAMETERS_MQH__
+
+//--------------------------------------------------
+// User-tunable (safe defaults)
+//--------------------------------------------------
+input int    SL_ATR_Period      = 14;
+input double SL_ATR_Multiplier  = 1.5;
+input double RR_Multiplier      = 2.0;   // 1:2 RR
+input bool   UseTrailingStop   = true;
+input double Trail_ATR_Mult     = 1.0;
+
+#endif
