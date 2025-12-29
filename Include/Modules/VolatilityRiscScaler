@@ -1,0 +1,48 @@
+#ifndef __VOLATILITY_RISK_SCALER_MQH__
+#define __VOLATILITY_RISK_SCALER_MQH__
+
+#include <Modules/VolatilityRegime.mqh>
+
+//--------------------------------------------------
+// Scale lot size based on volatility regime
+//--------------------------------------------------
+double ScaleLotByVolatility(
+   double baseLot,
+   ENUM_VOL_REGIME regime,
+   const string symbol
+)
+{
+   if(baseLot <= 0.0)
+      return 0.0;
+
+   double scaledLot = baseLot;
+
+   switch(regime)
+   {
+      case VOL_LOW:
+         scaledLot = baseLot * 1.10;
+         break;
+
+      case VOL_HIGH:
+         scaledLot = baseLot * 0.70;
+         break;
+
+      case VOL_NORMAL:
+      default:
+         scaledLot = baseLot;
+         break;
+   }
+
+   // Enforce broker limits
+   double minLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MIN);
+   double maxLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MAX);
+
+   if(scaledLot < minLot)
+      scaledLot = minLot;
+   if(scaledLot > maxLot)
+      scaledLot = maxLot;
+
+   return NormalizeDouble(scaledLot, 2);
+}
+
+#endif // __VOLATILITY_RISK_SCALER_MQH__
