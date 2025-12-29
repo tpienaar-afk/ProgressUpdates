@@ -1,0 +1,89 @@
+#ifndef __ADAPTIVE_TRAILING_MQH__
+#define __ADAPTIVE_TRAILING_MQH__
+
+#include <Trade/Trade.mqh>
+#include <Modules/VolatilityRegime.mqh>
+
+//--------------------------------------------------
+// External trade object (defined in TradeExecutor)
+//--------------------------------------------------
+extern CTrade Trade;
+
+//--------------------------------------------------
+// Adaptive trail multiplier based on volatility regime
+//--------------------------------------------------
+double AdaptiveTrailMultiplier(
+   ENUM_VOL_REGIME regime,
+   double baseMult
+)
+{
+   switch(regime)
+   {
+      case VOL_HIGH:
+         return baseMult * 1.5;
+
+      case VOL_LOW:
+         return baseMult * 0.8;
+
+      case VOL_NORMAL:
+      default:
+         return baseMult;
+   }
+}
+
+//--------------------------------------------------
+// Trailing stop manager (NO Trade parameter)
+//--------------------------------------------------
+void AdaptiveManageTrailing(
+   const string sym,
+   int atrPeriod,
+   double atrMultiplier
+)
+{
+   if(!PositionSelect(sym))
+      return;
+
+   int type = (int)PositionGetInteger(POSITION_TYPE);
+
+   double price;
+   if(type == POSITION_TYPE_BUY)
+      price = SymbolInfoDouble(sym, SYMBOL_BID);
+   else
+      price = SymbolInfoDouble(sym, SYMBOL_ASK);
+
+   // --- ATR (MQL5 handle-based) ---
+   int atrHandle = iATR(sym, PERIOD_M1, atrPeriod);
+   if(atrHandle == INVALID_HANDLE)
+      return;
+
+   double buf[];
+   if(CopyBuffer(atrHandle, 0, 0, 1, buf) <= 0)
+   {
+      IndicatorRelease(atrHandle);
+      return;
+   }
+   IndicatorRelease(atrHandle);
+
+   double atr = buf[0];
+   if(atr <= 0.0)
+      return;
+
+   double newSL;
+   double curSL = PositionGetDouble(POSITION_SL);
+   double tp    = PositionGetDouble(POSITION_TP);
+
+   if(type == POSITION_TYPE_BUY)
+      newSL = price - atr * atrMultiplier;
+   else
+      newSL = price + atr * atrMultiplier;
+
+   // Only trail forward
+   if(type == POSITION_TYPE_BUY && newSL <= curSL)
+      return;
+   if(type == POSITION_TYPE_SELL && newSL >= curSL)
+      return;
+
+   Trade.PositionModify(sym, newSL, tp);
+}
+
+#endif // __ADAPTIVE_TRAILING_MQH__
