@@ -1,0 +1,60 @@
+#ifndef __TRAILING_MANAGER_MQH__
+#define __TRAILING_MANAGER_MQH__
+
+#include <Trade/Trade.mqh>
+#include <Trade/PositionInfo.mqh>   // 🔴 REQUIRED
+
+//--------------------------------------------------
+// ATR-based trailing stop (module-safe)
+//--------------------------------------------------
+void ManageTrailing(
+   const string symbol,
+   CTrade &trade,
+   int atrPeriod,
+   double atrMultiplier
+)
+{
+   if(!PositionSelect(symbol))
+      return;
+
+   ENUM_POSITION_TYPE type =
+      (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
+
+   double price =
+      (type == POSITION_TYPE_BUY)
+      ? SymbolInfoDouble(symbol, SYMBOL_BID)
+      : SymbolInfoDouble(symbol, SYMBOL_ASK);
+
+   if(price <= 0)
+      return;
+
+   int atrHandle = iATR(symbol, PERIOD_M1, atrPeriod);
+   if(atrHandle == INVALID_HANDLE)
+      return;
+
+   double atrBuf[];
+   if(CopyBuffer(atrHandle, 0, 0, 1, atrBuf) != 1)
+      return;
+
+   double atr = atrBuf[0];
+   if(atr <= 0)
+      return;
+
+   double trailDist = atr * atrMultiplier;
+
+   double newSL =
+      (type == POSITION_TYPE_BUY)
+      ? price - trailDist
+      : price + trailDist;
+
+   double oldSL = PositionGetDouble(POSITION_SL);
+   double tp    = PositionGetDouble(POSITION_TP);
+
+   if(type == POSITION_TYPE_BUY && newSL > oldSL)
+      trade.PositionModify(symbol, newSL, tp);
+
+   if(type == POSITION_TYPE_SELL && newSL < oldSL)
+      trade.PositionModify(symbol, newSL, tp);
+}
+
+#endif
