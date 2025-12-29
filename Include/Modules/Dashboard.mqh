@@ -25,54 +25,72 @@ string TFToString(ENUM_TIMEFRAMES tf)
 // Layout (LOCKED)
 //--------------------------------------------------
 #define DASH_X_LEFT    20
-#define DASH_X_RIGHT   240
+#define DASH_X_RIGHT   300
 
 #define DASH_Y_START   96
 #define DASH_LINE_H    18
 
-#define DASH_BG_X      10
-#define DASH_BG_Y      70
-#define DASH_BG_W      460
-#define DASH_BG_H      200
-
 //--------------------------------------------------
 // Object names
 //--------------------------------------------------
-#define DASH_BG        "DASH_BG"
-
 #define D_STATUS       "D_STATUS"
 #define D_SYMBOL       "D_SYMBOL"
 #define D_TF           "D_TF"
 #define D_MODE         "D_MODE"
-
 #define D_SPREAD       "D_SPREAD"
 #define D_RISK         "D_RISK"
 #define D_LOT          "D_LOT"
 #define D_SIGNAL       "D_SIGNAL"
-
-#define DASH_SL        "DASH_SL"
-#define DASH_TP        "DASH_TP"
-#define DASH_BE        "DASH_BE"
-#define DASH_TRAIL     "DASH_TRAIL"
-
 #define D_PAPER        "D_PAPER"
 
 //--------------------------------------------------
-// Internal helper
+// COLOR HELPERS
+//--------------------------------------------------
+color StatusColor(const string s)
+{
+   if(s == "WEEKEND" || s == "OUT OF SESSION")
+      return clrOrange;
+
+   if(s == "FAST MOVE" || s == "ERROR")
+      return clrRed;
+
+   if(s == "SIGNAL READY")
+      return clrDodgerBlue;
+
+   if(s == "TRADE EXECUTED" || s == "TRADE ACTIVE")
+      return clrGreen;
+
+   return clrSilver;
+}
+
+color SignalColor(const string s)
+{
+   if(StringFind(s, "STRONG") >= 0)
+      return clrGreen;
+
+   if(StringFind(s, "READY") >= 0)
+      return clrDodgerBlue;
+
+   if(StringFind(s, "WEAK") >= 0)
+      return clrOrange;
+
+   return clrSilver;
+}
+
+//--------------------------------------------------
+// Label helper
 //--------------------------------------------------
 void DashLabel(const string name,int x,int y,const string text)
 {
-   if(ObjectFind(0,name) >= 0)
-      ObjectDelete(0,name);
-
+   ObjectDelete(0,name);
    ObjectCreate(0,name,OBJ_LABEL,0,0,0);
    ObjectSetInteger(0,name,OBJPROP_CORNER,CORNER_LEFT_UPPER);
    ObjectSetInteger(0,name,OBJPROP_XDISTANCE,x);
    ObjectSetInteger(0,name,OBJPROP_YDISTANCE,y);
-   ObjectSetInteger(0,name,OBJPROP_COLOR,clrBlack);
    ObjectSetInteger(0,name,OBJPROP_FONTSIZE,9);
    ObjectSetString (0,name,OBJPROP_FONT,"Consolas");
    ObjectSetString (0,name,OBJPROP_TEXT,text);
+   ObjectSetInteger(0,name,OBJPROP_COLOR,clrSilver);
 }
 
 //--------------------------------------------------
@@ -80,34 +98,17 @@ void DashLabel(const string name,int x,int y,const string text)
 //--------------------------------------------------
 void Dashboard_Create()
 {
-   ObjectCreate(0,DASH_BG,OBJ_RECTANGLE_LABEL,0,0,0);
-   ObjectSetInteger(0,DASH_BG,OBJPROP_CORNER,CORNER_LEFT_UPPER);
-   ObjectSetInteger(0,DASH_BG,OBJPROP_XDISTANCE,DASH_BG_X);
-   ObjectSetInteger(0,DASH_BG,OBJPROP_YDISTANCE,DASH_BG_Y);
-   ObjectSetInteger(0,DASH_BG,OBJPROP_XSIZE,DASH_BG_W);
-   ObjectSetInteger(0,DASH_BG,OBJPROP_YSIZE,DASH_BG_H);
-   ObjectSetInteger(0,DASH_BG,OBJPROP_COLOR,clrBlack);
-   ObjectSetInteger(0,DASH_BG,OBJPROP_BACK,true);
-
-   // Left
    DashLabel(D_STATUS, DASH_X_LEFT,  DASH_Y_START + 0*DASH_LINE_H, "Status:");
    DashLabel(D_SYMBOL, DASH_X_LEFT,  DASH_Y_START + 1*DASH_LINE_H, "Symbol:");
    DashLabel(D_TF,     DASH_X_LEFT,  DASH_Y_START + 2*DASH_LINE_H, "TF:");
    DashLabel(D_MODE,   DASH_X_LEFT,  DASH_Y_START + 3*DASH_LINE_H, "Mode:");
 
-   // Right
    DashLabel(D_SPREAD, DASH_X_RIGHT, DASH_Y_START + 0*DASH_LINE_H, "Spread:");
    DashLabel(D_RISK,   DASH_X_RIGHT, DASH_Y_START + 1*DASH_LINE_H, "Risk:");
    DashLabel(D_LOT,    DASH_X_RIGHT, DASH_Y_START + 2*DASH_LINE_H, "Lot:");
    DashLabel(D_SIGNAL, DASH_X_RIGHT, DASH_Y_START + 3*DASH_LINE_H, "Signal:");
 
-   // Management
-   DashLabel(DASH_SL,    DASH_X_LEFT, DASH_Y_START + 5*DASH_LINE_H, "SL: -");
-   DashLabel(DASH_TP,    DASH_X_LEFT, DASH_Y_START + 6*DASH_LINE_H, "TP: -");
-   DashLabel(DASH_BE,    DASH_X_LEFT, DASH_Y_START + 7*DASH_LINE_H, "BE: -");
-   DashLabel(DASH_TRAIL, DASH_X_LEFT, DASH_Y_START + 8*DASH_LINE_H, "Trail: -");
-
-   DashLabel(D_PAPER, DASH_X_RIGHT, DASH_Y_START + 4*DASH_LINE_H, "Paper P/L:");
+   DashLabel(D_PAPER,  DASH_X_RIGHT, DASH_Y_START + 4*DASH_LINE_H, "Paper P/L:");
 }
 
 //--------------------------------------------------
@@ -115,7 +116,14 @@ void Dashboard_Create()
 //--------------------------------------------------
 void Dashboard_UpdateStatus(const string s)
 {
+   ObjectSetInteger(0,D_STATUS,OBJPROP_COLOR,StatusColor(s));
    ObjectSetString(0,D_STATUS,OBJPROP_TEXT,"Status: "+s);
+}
+
+void Dashboard_UpdateSignal(const string s)
+{
+   ObjectSetInteger(0,D_SIGNAL,OBJPROP_COLOR,SignalColor(s));
+   ObjectSetString(0,D_SIGNAL,OBJPROP_TEXT,"Signal: "+s);
 }
 
 void Dashboard_UpdateSymbol(const string s)
@@ -148,11 +156,6 @@ void Dashboard_UpdateLot(double v)
    ObjectSetString(0,D_LOT,OBJPROP_TEXT,"Lot: "+DoubleToString(v,2));
 }
 
-void Dashboard_UpdateSignal(const string s)
-{
-   ObjectSetString(0,D_SIGNAL,OBJPROP_TEXT,"Signal: "+s);
-}
-
 void Dashboard_UpdatePaperPL(double v)
 {
    ObjectSetString(0,D_PAPER,OBJPROP_TEXT,"Paper P/L: "+DoubleToString(v,2));
@@ -163,16 +166,15 @@ void Dashboard_UpdatePaperPL(double v)
 //--------------------------------------------------
 void Dashboard_Destroy()
 {
-   string objs[]={
-      DASH_BG,
-      D_STATUS,D_SYMBOL,D_TF,D_MODE,
-      D_SPREAD,D_RISK,D_LOT,D_SIGNAL,
-      DASH_SL,DASH_TP,DASH_BE,DASH_TRAIL,
-      D_PAPER
-   };
-
-   for(int i=0;i<ArraySize(objs);i++)
-      ObjectDelete(0,objs[i]);
+   ObjectDelete(0,D_STATUS);
+   ObjectDelete(0,D_SYMBOL);
+   ObjectDelete(0,D_TF);
+   ObjectDelete(0,D_MODE);
+   ObjectDelete(0,D_SPREAD);
+   ObjectDelete(0,D_RISK);
+   ObjectDelete(0,D_LOT);
+   ObjectDelete(0,D_SIGNAL);
+   ObjectDelete(0,D_PAPER);
 }
 
 #endif
