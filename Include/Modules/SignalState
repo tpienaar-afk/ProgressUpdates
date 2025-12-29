@@ -1,0 +1,27 @@
+#ifndef __SIGNAL_STATE_MQH__
+#define __SIGNAL_STATE_MQH__
+
+//--------------------------------------------------
+// Signal quality & readiness
+//--------------------------------------------------
+enum ENUM_SIGNAL_STATE
+{
+   SIGNAL_NONE = 0,
+   SIGNAL_WEAK,
+   SIGNAL_READY,
+   SIGNAL_CONFIRMED
+};
+
+string SignalStateToString(ENUM_SIGNAL_STATE s)
+{
+   switch(s)
+   {
+      case SIGNAL_NONE:      return "NONE";
+      case SIGNAL_WEAK:      return "WEAK";
+      case SIGNAL_READY:     return "READY";
+      case SIGNAL_CONFIRMED: return "CONFIRMED";
+      default:               return "?";
+   }
+}
+
+#endif
