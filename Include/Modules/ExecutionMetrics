@@ -1,0 +1,95 @@
+#ifndef __EXECUTION_METRICS_MQH__
+#define __EXECUTION_METRICS_MQH__
+
+//--------------------------------------------------
+// Execution metrics (polling-based, MT5 safe)
+//--------------------------------------------------
+
+struct ExecutionStats
+{
+   int    trades;
+   int    wins;
+   int    losses;
+   double totalR;
+   double lastR;
+};
+
+ExecutionStats g_execStats;
+
+// Track last processed deal
+ulong g_lastDealTicket = 0;
+
+//--------------------------------------------------
+void ExecMetrics_Reset()
+{
+   g_execStats.trades = 0;
+   g_execStats.wins   = 0;
+   g_execStats.losses = 0;
+   g_execStats.totalR = 0.0;
+   g_execStats.lastR  = 0.0;
+   g_lastDealTicket   = 0;
+}
+
+//--------------------------------------------------
+// Poll closed trades safely
+//--------------------------------------------------
+void ExecMetrics_Poll(double riskPercent)
+{
+   if(!HistorySelect(0, TimeCurrent()))
+      return;
+
+   int deals = HistoryDealsTotal();
+   if(deals <= 0)
+      return;
+
+   for(int i = deals - 1; i >= 0; i--)
+   {
+      ulong ticket = HistoryDealGetTicket(i);
+      if(ticket == 0 || ticket == g_lastDealTicket)
+         break;
+
+      ENUM_DEAL_ENTRY entry =
+         (ENUM_DEAL_ENTRY)HistoryDealGetInteger(ticket, DEAL_ENTRY);
+
+      if(entry != DEAL_ENTRY_OUT)
+         continue;
+
+      double profit = HistoryDealGetDouble(ticket, DEAL_PROFIT);
+
+      double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+      double riskMoney = balance * (riskPercent / 100.0);
+      if(riskMoney <= 0.0)
+         continue;
+
+      double R = profit / riskMoney;
+
+      g_execStats.trades++;
+      g_execStats.totalR += R;
+      g_execStats.lastR = R;
+
+      if(R > 0.0)
+         g_execStats.wins++;
+      else
+         g_execStats.losses++;
+
+      g_lastDealTicket = ticket;
+      break;
+   }
+}
+
+//--------------------------------------------------
+double ExecMetrics_WinRate()
+{
+   if(g_execStats.trades == 0)
+      return 0.0;
+   return 100.0 * g_execStats.wins / g_execStats.trades;
+}
+
+double ExecMetrics_AvgR()
+{
+   if(g_execStats.trades == 0)
+      return 0.0;
+   return g_execStats.totalR / g_execStats.trades;
+}
+
+#endif
