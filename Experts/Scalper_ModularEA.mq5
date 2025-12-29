@@ -1,116 +1,125 @@
 #property strict
-#property version   "1.10"
-#property description "Modular Scalper EA – stable locked baseline"
+#property version   "1.50"
+#property description "Scalper Modular EA – synthetic safe baseline"
 
-//--------------------------------------------------
-// Module includes (LOCKED PATHS)
-//--------------------------------------------------
+//==================================================
+// EXECUTION MODE
+//==================================================
 #include <Modules/ExecutionMode.mqh>
+
+//==================================================
+// CORE / UI
+//==================================================
 #include <Modules/Dashboard.mqh>
 #include <Modules/MarketConditions.mqh>
+#include <Modules/PipCalculator.mqh>
+#include <Modules/ExecutionGuard.mqh>
+
+//==================================================
+// SIGNALS
+//==================================================
 #include <Modules/Indicators.mqh>
 #include <Modules/Signal_Scalper.mqh>
-#include <Modules/PipCalculator.mqh>
+
+//==================================================
+// RISK / TRADE (Trade object lives here)
+//==================================================
+#include <Modules/SLTPManager.mqh>
 #include <Modules/RiskManager.mqh>
 #include <Modules/TradeExecutor.mqh>
+
+//==================================================
+// PAPER TRADING
+//==================================================
 #include <Modules/PaperTrade.mqh>
 
-
-//--------------------------------------------------
-// Inputs
-//--------------------------------------------------
-input double MaxSpread     = 50.0;
-input double RiskPercent   = 1.0;
+//==================================================
+// INPUTS
+//==================================================
+input double RiskPercent   = 0.3;   // SAFE for synthetics
 input int    FastMAPeriod  = 10;
 input int    SlowMAPeriod  = 30;
 input int    RSIPeriod     = 14;
 
-//--------------------------------------------------
-// Globals
-//--------------------------------------------------
-string g_blockReason = "";
+input int    SL_ATR_Period     = 14;
+input double SL_ATR_Multiplier = 2.5;
+input double RR_Multiplier     = 1.2;
 
-//--------------------------------------------------
-// Expert initialization
-//--------------------------------------------------
+//==================================================
+// GLOBALS
+//==================================================
+string   g_blockReason     = "";
+datetime g_lastTradeTime   = 0;
+double   g_lastTradeProfit = 0.0;
+
+//==================================================
+// INIT
+//==================================================
 int OnInit()
 {
-   Print("Scalper_ModularEA loaded");
-
    Dashboard_Create();
 
-   Dashboard_UpdateStatus("INITIALISING");
    Dashboard_UpdateSymbol(_Symbol);
    Dashboard_UpdateTF(TFToString(_Period));
    Dashboard_UpdateRisk(RiskPercent);
    Dashboard_UpdateMode(ExecutionModeToText());
+   Dashboard_UpdateStatus("READY");
 
-   // HARD SAFETY NOTICE
-   if(ExecutionMode != MODE_LIVE)
-      Print("⚠ EA running in SAFE MODE (NO REAL TRADES)");
-
-   if(ExecutionMode == MODE_LIVE)
-      Alert("⚠ LIVE TRADING ENABLED ⚠");
-
+   Print("EA LOADED: ", _Symbol);
    return INIT_SUCCEEDED;
 }
 
-//--------------------------------------------------
-// Expert deinitialization
-//--------------------------------------------------
+//==================================================
+// DEINIT
+//==================================================
 void OnDeinit(const int reason)
 {
    Dashboard_Destroy();
-   Print("Scalper_ModularEA unloaded");
+   Print("EA STOPPED");
 }
 
-//--------------------------------------------------
-// Expert tick
-//--------------------------------------------------
-void OnTick()
-
-
+//==================================================
+// COOLDOWN AFTER LOSS
+//==================================================
+bool CooldownOK()
 {
-   
-//Call update on every tick
-   
-   PaperTrade_OnTick();
-   Dashboard_UpdatePaperPL(PaperTrade_GetProfit());
-   
-   
-   
-   // --------------------------------------------------
-   // ALWAYS UPDATE DASHBOARD (NO EARLY RETURNS ABOVE)
-   // --------------------------------------------------
-   double spread = GetDisplaySpread(_Symbol);
-   Dashboard_UpdateSpread(spread);
-   Dashboard_UpdatePaperPL(PaperTrade_GetProfit());
+   if(g_lastTradeTime == 0)
+      return true;
 
-   // --------------------------------------------------
-   // ANALYSIS MODE (DISPLAY ONLY – ABSOLUTE HARD STOP)
-   // --------------------------------------------------
-   if(ExecutionMode == MODE_ANALYSIS)
+   int waitSeconds = (g_lastTradeProfit < 0 ? 600 : 120);
+
+   if(TimeCurrent() - g_lastTradeTime < waitSeconds)
    {
-      Dashboard_UpdateStatus("ANALYSIS");
-      Dashboard_UpdateSignal("-");
-      return;
+      Dashboard_UpdateStatus("COOLDOWN");
+      return false;
    }
+   return true;
+}
 
-   // --------------------------------------------------
-   // MARKET CONDITIONS
-   // --------------------------------------------------
-   if(!MarketConditionsOK(_Symbol, MaxSpread, g_blockReason))
+//==================================================
+// TICK
+//==================================================
+void OnTick()
+{
+   // --- UI
+   Dashboard_UpdateSpread(GetDisplaySpread(_Symbol));
+   Dashboard_UpdatePaperPL(PaperTrade_GetProfit());
+   PaperTrade_OnTick();
+
+   // --- Guards
+   if(!ExecutionTimingOK(_Symbol))
+      return;
+
+   if(!MarketConditionsOK(_Symbol, 0, g_blockReason))
    {
       Dashboard_UpdateStatus(g_blockReason);
-      Dashboard_UpdateSignal("-");
       return;
    }
 
-   Dashboard_UpdateStatus("OK");
+   if(!CooldownOK())
+      return;
 
-   // --------------------------------------------------
-   // SIGNAL
-   // --------------------------------------------------
+   // --- Signal
    int signal = GetScalperSignal(
       _Symbol,
       PERIOD_M1,
@@ -125,56 +134,77 @@ void OnTick()
       return;
    }
 
-   string signalText = (signal > 0 ? "BUY" : "SELL");
-   Dashboard_UpdateSignal(signalText);
+   Dashboard_UpdateSignal(signal > 0 ? "BUY" : "SELL");
 
-   // --------------------------------------------------
-   // LOT CALCULATION
-   // --------------------------------------------------
-   double lot = CalculateRiskLot(_Symbol, RiskPercent);
+   // --- SL / TP
+   double sl = 0.0, tp = 0.0;
+
+   if(!CalculateSLTP(
+         _Symbol,
+         signal > 0 ? ORDER_TYPE_BUY : ORDER_TYPE_SELL,
+         SL_ATR_Period,
+         SL_ATR_Multiplier,
+         RR_Multiplier,
+         sl,
+         tp))
+   {
+      Dashboard_UpdateStatus("SLTP ERROR");
+      return;
+   }
+
+   // --- Lot size (account safe)
+   double lot = CalculateRiskLot(_Symbol, RiskPercent, sl);
    if(lot <= 0)
    {
-      Dashboard_UpdateStatus("RISK ERROR");
+      Dashboard_UpdateStatus("RISK BLOCKED");
       return;
    }
 
    Dashboard_UpdateLot(lot);
 
-   // --------------------------------------------------
-   // PAPER TRADING MODE
-   // --------------------------------------------------
-  if(ExecutionMode == MODE_PAPER)
-{
-   // Manage existing paper trade
-   PaperTrade_Manage(signal > 0 ? +1 : -1);
-
-   // Open new paper trade if none exists
-   if(!pt_active)
+   // --- PAPER MODE
+   if(ExecutionMode == MODE_PAPER && !pt_active)
    {
-      PaperTrade_Open(signal > 0 ? +1 : -1, lot);
-      Dashboard_UpdateStatus("PAPER TRADE OPEN");
-   }
-   else
-   {
-      Dashboard_UpdateStatus("PAPER TRADE ACTIVE");
+      int dir = (signal > 0 ? +1 : -1);
+      PaperTrade_Open(dir, lot, sl, tp);
+      Dashboard_UpdateStatus("PAPER OPEN");
+      return;
    }
 
-   return;
-}
-
-
-   // --------------------------------------------------
-   // LIVE TRADING MODE (ONLY PLACE REAL ORDERS CAN HAPPEN)
-   // --------------------------------------------------
-   if(ExecutionMode == MODE_LIVE)
+   // --- LIVE MODE
+   if(ExecutionMode == MODE_LIVE && !PositionSelect(_Symbol))
    {
-      bool ok = false;
+      bool ok;
 
       if(signal > 0)
-         ok = Trade_OpenBuy(_Symbol, lot);
+         ok = Trade_OpenBuy(_Symbol, lot, SL_ATR_Period, SL_ATR_Multiplier, RR_Multiplier);
       else
-         ok = Trade_OpenSell(_Symbol, lot);
+         ok = Trade_OpenSell(_Symbol, lot, SL_ATR_Period, SL_ATR_Multiplier, RR_Multiplier);
 
-      Dashboard_UpdateStatus(ok ? "TRADE OPENED" : "ORDER FAILED");
+      Dashboard_UpdateStatus(ok ? "LIVE OPEN" : "ORDER FAILED");
    }
+}
+
+//==================================================
+// TRADE RESULT TRACKING (CORRECT MQL5 WAY)
+//==================================================
+void OnTradeTransaction(
+   const MqlTradeTransaction &trans,
+   const MqlTradeRequest &req,
+   const MqlTradeResult &res
+)
+{
+   if(trans.type != TRADE_TRANSACTION_DEAL_ADD)
+      return;
+
+   if(trans.deal_type != DEAL_TYPE_BUY &&
+      trans.deal_type != DEAL_TYPE_SELL)
+      return;
+
+   double profit = HistoryDealGetDouble(trans.deal, DEAL_PROFIT);
+
+   g_lastTradeTime   = TimeCurrent();
+   g_lastTradeProfit = profit;
+
+   Print("Trade closed | Profit: ", profit);
 }
