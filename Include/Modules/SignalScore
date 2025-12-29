@@ -1,0 +1,48 @@
+#ifndef __SIGNAL_SCORE_MQH__
+#define __SIGNAL_SCORE_MQH__
+
+//--------------------------------------------------
+// Numeric signal strength score (0–100)
+// Pure scoring layer – NO trading logic
+//--------------------------------------------------
+int CalculateSignalScore(
+   int signalDirection,     // -1, 0, +1
+   double rsiValue,
+   double fastMA,
+   double slowMA
+)
+{
+   if(signalDirection == 0)
+      return 0;
+
+   int score = 50; // base score for valid direction
+
+   // RSI contribution
+   if(signalDirection > 0) // BUY
+   {
+      if(rsiValue < 30) score += 25;
+      else if(rsiValue < 40) score += 15;
+      else if(rsiValue < 50) score += 5;
+   }
+   else // SELL
+   {
+      if(rsiValue > 70) score += 25;
+      else if(rsiValue > 60) score += 15;
+      else if(rsiValue > 50) score += 5;
+   }
+
+   // MA separation contribution
+   double maDiff = MathAbs(fastMA - slowMA);
+   if(maDiff > 0)
+   {
+      score += (int)MathMin(25, maDiff / _Point);
+   }
+
+   // Clamp
+   if(score < 0)   score = 0;
+   if(score > 100) score = 100;
+
+   return score;
+}
+
+#endif
