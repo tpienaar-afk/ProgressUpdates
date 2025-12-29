@@ -1,0 +1,67 @@
+#ifndef __VOLATILITY_REGIME_MQH__
+#define __VOLATILITY_REGIME_MQH__
+
+//--------------------------------------------------
+// Volatility regime enum (display-only, reusable)
+//--------------------------------------------------
+enum ENUM_VOL_REGIME
+{
+   VOL_LOW = 0,
+   VOL_NORMAL,
+   VOL_HIGH
+};
+
+//--------------------------------------------------
+// Convert to text
+//--------------------------------------------------
+string VolRegimeToString(ENUM_VOL_REGIME r)
+{
+   switch(r)
+   {
+      case VOL_LOW:    return "LOW";
+      case VOL_NORMAL: return "NORMAL";
+      case VOL_HIGH:   return "HIGH";
+      default:         return "?";
+   }
+}
+
+//--------------------------------------------------
+// ATR-based volatility regime
+//--------------------------------------------------
+ENUM_VOL_REGIME GetVolatilityRegime(
+   const string symbol,
+   ENUM_TIMEFRAMES tf,
+   int atrPeriod = 14,
+   int lookback  = 20
+)
+{
+   int atrHandle = iATR(symbol, tf, atrPeriod);
+   if(atrHandle == INVALID_HANDLE)
+      return VOL_NORMAL;
+
+   double buf[];
+   if(CopyBuffer(atrHandle, 0, 0, lookback, buf) < lookback)
+      return VOL_NORMAL;
+
+   double currentATR = buf[0];
+   if(currentATR <= 0)
+      return VOL_NORMAL;
+
+   double sum = 0.0;
+   for(int i = 1; i < lookback; i++)
+      sum += buf[i];
+
+   double avgATR = sum / (lookback - 1);
+   if(avgATR <= 0)
+      return VOL_NORMAL;
+
+   if(currentATR < avgATR * 0.8)
+      return VOL_LOW;
+
+   if(currentATR > avgATR * 1.3)
+      return VOL_HIGH;
+
+   return VOL_NORMAL;
+}
+
+#endif
