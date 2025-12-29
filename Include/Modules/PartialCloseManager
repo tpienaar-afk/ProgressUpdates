@@ -1,0 +1,36 @@
+#ifndef __PARTIAL_CLOSE_MANAGER_MQH__
+#define __PARTIAL_CLOSE_MANAGER_MQH__
+
+#include <Trade/Trade.mqh>
+
+//--------------------------------------------------
+// External trade object (defined in TradeExecutor)
+//--------------------------------------------------
+extern CTrade Trade;
+
+//--------------------------------------------------
+// Partial close logic based on signal strength
+//--------------------------------------------------
+void ManagePartialClose(
+   const string sym,
+   int signalScore
+)
+{
+   // Only act on strong signals
+   if(signalScore < 80)
+      return;
+
+   if(!PositionSelect(sym))
+      return;
+
+   double volume      = PositionGetDouble(POSITION_VOLUME);
+   double minVolume   = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
+   double closeVolume = volume * 0.5;
+
+   if(closeVolume < minVolume)
+      return;
+
+   Trade.PositionClosePartial(sym, closeVolume);
+}
+
+#endif // __PARTIAL_CLOSE_MANAGER_MQH__
