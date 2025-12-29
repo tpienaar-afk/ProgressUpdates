@@ -2,7 +2,7 @@
 #define __PAPER_TRADE_MQH__
 
 //--------------------------------------------------
-// Virtual position state
+// Virtual position state (OWNED HERE)
 //--------------------------------------------------
 bool   pt_active    = false;
 int    pt_direction = 0;     // +1 BUY, -1 SELL
@@ -63,8 +63,6 @@ double PaperTrade_GetProfit()
 }
 
 //--------------------------------------------------
-// Paper trade tick management
-//--------------------------------------------------
 void PaperTrade_OnTick()
 {
    if(!pt_active)
@@ -74,24 +72,16 @@ void PaperTrade_OnTick()
       ? SymbolInfoDouble(_Symbol, SYMBOL_BID)
       : SymbolInfoDouble(_Symbol, SYMBOL_ASK);
 
-   // --- Stop Loss
    if(pt_sl > 0)
    {
-      if(pt_direction > 0 && price <= pt_sl)
-         PaperTrade_Close();
-
-      if(pt_direction < 0 && price >= pt_sl)
-         PaperTrade_Close();
+      if(pt_direction > 0 && price <= pt_sl) PaperTrade_Close();
+      if(pt_direction < 0 && price >= pt_sl) PaperTrade_Close();
    }
 
-   // --- Take Profit
    if(pt_tp > 0)
    {
-      if(pt_direction > 0 && price >= pt_tp)
-         PaperTrade_Close();
-
-      if(pt_direction < 0 && price <= pt_tp)
-         PaperTrade_Close();
+      if(pt_direction > 0 && price >= pt_tp) PaperTrade_Close();
+      if(pt_direction < 0 && price <= pt_tp) PaperTrade_Close();
    }
 }
 
