@@ -1,0 +1,60 @@
+#ifndef __SYMBOL_STATE_MQH__
+#define __SYMBOL_STATE_MQH__
+
+#include <Modules/EAStatus.mqh>
+
+//--------------------------------------------------
+// Per-symbol EA state container
+//--------------------------------------------------
+struct SymbolState
+{
+   string symbol;
+
+   // Signal / scoring
+   int    lastSignalScore;
+   int    lastSignalDir;
+
+   // Partial close tracking
+   double lastPartialRatio;
+
+   // EA status
+   ENUM_EA_STATUS lastStatus;
+
+   // Init flag
+   bool   initialized;
+};
+
+//--------------------------------------------------
+// Storage
+//--------------------------------------------------
+static SymbolState g_symbolStates[];
+
+//--------------------------------------------------
+// Get or create symbol state
+//--------------------------------------------------
+int GetSymbolStateIndex(const string symbol)
+{
+   int count = ArraySize(g_symbolStates);
+
+   for(int i = 0; i < count; i++)
+   {
+      if(g_symbolStates[i].symbol == symbol)
+         return i;
+   }
+
+   // Create new entry
+   SymbolState s;
+   s.symbol           = symbol;
+   s.lastSignalScore  = 0;
+   s.lastSignalDir    = 0;
+   s.lastPartialRatio = 0.0;
+   s.lastStatus       = EA_STATUS_INIT;
+   s.initialized      = true;
+
+   ArrayResize(g_symbolStates, count + 1);
+   g_symbolStates[count] = s;
+
+   return count;
+}
+
+#endif // __SYMBOL_STATE_MQH__
