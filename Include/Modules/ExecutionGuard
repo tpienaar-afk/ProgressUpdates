@@ -1,0 +1,51 @@
+#ifndef __EXECUTION_GUARD_MQH__
+#define __EXECUTION_GUARD_MQH__
+
+//--------------------------------------------------
+// Execution timing guard
+// Blocks entries during sudden price spikes
+//--------------------------------------------------
+bool ExecutionTimingOK(
+   const string symbol,
+   double maxATRfraction = 0.3
+)
+{
+   MqlTick tick;
+   if(!SymbolInfoTick(symbol, tick))
+      return false;
+
+   double price = (tick.ask + tick.bid) * 0.5;
+   if(price <= 0)
+      return false;
+
+   static double lastPrice = 0.0;
+
+   // First call → allow
+   if(lastPrice == 0.0)
+   {
+      lastPrice = price;
+      return true;
+   }
+
+   int atrHandle = iATR(symbol, PERIOD_M1, 14);
+   if(atrHandle == INVALID_HANDLE)
+      return true;
+
+   double atrBuf[];
+   if(CopyBuffer(atrHandle, 0, 0, 1, atrBuf) != 1)
+      return true;
+
+   double atr = atrBuf[0];
+   if(atr <= 0)
+      return true;
+
+   double move = MathAbs(price - lastPrice);
+   lastPrice = price;
+
+   if(move > atr * maxATRfraction)
+      return false;
+
+   return true;
+}
+
+#endif
