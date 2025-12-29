@@ -6,20 +6,25 @@
 //--------------------------------------------------
 enum ENUM_EXECUTION_MODE
 {
-   MODE_ANALYSIS = 0,   // no trades
-   MODE_PAPER    = 1,   // simulated
-   MODE_LIVE     = 2    // real trades
+   MODE_OFF      = 0,   // EA loaded, does nothing at all
+   MODE_ANALYSIS = 1,   // indicators & dashboard only
+   MODE_PAPER    = 2,   // simulated trades
+   MODE_LIVE     = 3    // real trades
 };
 
+//--------------------------------------------------
+// User-selectable mode
+//--------------------------------------------------
 input ENUM_EXECUTION_MODE ExecutionMode = MODE_ANALYSIS;
 
 //--------------------------------------------------
-// Helper
+// Helper: readable mode text
 //--------------------------------------------------
 string ExecutionModeToText()
 {
    switch(ExecutionMode)
    {
+      case MODE_OFF:      return "OFF";
       case MODE_ANALYSIS: return "ANALYSIS";
       case MODE_PAPER:    return "PAPER";
       case MODE_LIVE:     return "LIVE";
@@ -27,4 +32,4 @@ string ExecutionModeToText()
    return "UNKNOWN";
 }
 
-#endif
+#endif // __EXECUTION_MODE_MQH__
