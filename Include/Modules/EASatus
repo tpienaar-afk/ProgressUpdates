@@ -1,0 +1,46 @@
+#ifndef __EA_STATUS_MQH__
+#define __EA_STATUS_MQH__
+
+//--------------------------------------------------
+// EA operational states
+//--------------------------------------------------
+enum ENUM_EA_STATUS
+{
+   EA_STATUS_INIT = 0,
+   EA_STATUS_WAITING,
+   EA_STATUS_WEEKEND,
+   EA_STATUS_OUT_OF_SESSION,
+   EA_STATUS_FAST_MOVE,
+   EA_STATUS_MARKET_BLOCKED,
+   EA_STATUS_NO_SIGNAL,
+   EA_STATUS_SIGNAL_WEAK,
+   EA_STATUS_SIGNAL_READY,
+   EA_STATUS_TRADE_EXECUTED,
+   EA_STATUS_TRADE_ACTIVE,
+   EA_STATUS_ERROR
+};
+
+//--------------------------------------------------
+// Convert status to text (UI / logging)
+//--------------------------------------------------
+string EAStatusToString(ENUM_EA_STATUS status)
+{
+   switch(status)
+   {
+      case EA_STATUS_INIT:           return "INITIALISING";
+      case EA_STATUS_WAITING:        return "WAITING";
+      case EA_STATUS_WEEKEND:        return "WEEKEND";
+      case EA_STATUS_OUT_OF_SESSION: return "OUT OF SESSION";
+      case EA_STATUS_FAST_MOVE:      return "FAST MOVE";
+      case EA_STATUS_MARKET_BLOCKED: return "MARKET BLOCKED";
+      case EA_STATUS_NO_SIGNAL:      return "NO SIGNAL";
+      case EA_STATUS_SIGNAL_WEAK:    return "SIGNAL WEAK";
+      case EA_STATUS_SIGNAL_READY:   return "SIGNAL READY";
+      case EA_STATUS_TRADE_EXECUTED: return "TRADE EXECUTED";
+      case EA_STATUS_TRADE_ACTIVE:   return "TRADE ACTIVE";
+      case EA_STATUS_ERROR:          return "ERROR";
+      default:                       return "?";
+   }
+}
+
+#endif
