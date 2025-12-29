@@ -1,6 +1,15 @@
 #ifndef __MARKET_CONDITIONS_MQH__
 #define __MARKET_CONDITIONS_MQH__
 
+//==================================================
+// INPUTS (FX SESSION CONTROL)
+//==================================================
+input bool EnableFXSessionFilter = true;
+
+// Broker SERVER hours (adjust once if needed)
+input int FXSessionStartHour = 7;
+input int FXSessionEndHour   = 21;
+
 //--------------------------------------------------
 // Detect synthetic instruments
 //--------------------------------------------------
@@ -39,11 +48,14 @@ bool MarketConditionsOK(
          return false;
       }
 
-      // Session block
-      if(t.hour < 7 || t.hour > 21)
+      // Session block (CONFIGURABLE)
+      if(EnableFXSessionFilter)
       {
-         blockReason = "Out of session";
-         return false;
+         if(t.hour < FXSessionStartHour || t.hour > FXSessionEndHour)
+         {
+            blockReason = "Out of session";
+            return false;
+         }
       }
    }
 
